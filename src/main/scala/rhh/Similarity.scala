@@ -61,23 +61,43 @@ def doMinhashComparisonWithQuora() = {
 
   val vectors:DataFrame = vectorizer.transform(tokenizer.transform(quoraText))
   vectors.show()
-  /*
+  
   val model:Model = mh.fit(vectors)
 
-  
+
+  quoraText.map(r=>Row(r.select("duplicate"),
+                       minHashSimScore(vectors.filter(s"""q1id = ${r.select("q1id")}"""),
+		       		       vectors.filter(s"""q1id = ${r.select("q2id")}"""))			       
+		       )
+	       )
+	   .groupByKey()
+	   .
+
   val dataA = vectors.sample(false,0.8)
   val dataB = vectors.sample(false,0.2)	
   val maxDf = 0.6
-  val transformedA = model.transform(dataA).cache()
-  val transformedB = model.transform(dataB).cache()
-  val mhResults = model.approxSimilarityJoin(transformedA, transformedB, maxDf).cache()
-  val mhResultsNz = mhResults.filter("distCol > 0")
+  val transformedA:DataFrame = model.transform(dataA).cache()
+  val transformedB:DataFrame = model.transform(dataB).cache()
+  val mhResults:DataFrame = model.approxSimilarityJoin(transformedA, transformedB, maxDf).cache()
+  val mhResultsNz:DataFrame = mhResults.filter("distCol > 0")
   mhResultsNz.show(100,80)
 
 */
 }
 
+//lifted from https://github.com/apache/spark/blob/master/mllib/src/main/scala/org/apache/spark/ml/feature/MinHashLSH.scala#L70
+def keyDistance(x:Vector, y:Vector){
+   val xSet = x.toSparse.indices.toSet
+   val ySet = y.toSparse.indices.toSet
+   val intersectionSize = xSet.intersect(ySet).size.toDouble
+   val unionSize = xSet.size + ySet.size - intersectionSize	
+   assert(unionSize > 0, "The union of two input sets must have at least 1 elements")
+   1 - intersectionSize / unionSize
+}
 
+def minHashSimScore(a:DataFrame, b:DataFrame): Double = {
+  return keyDistance(a.select("mh_vector"),b.select("mh_vector"))
+}
 
 //lifted from Ryan N.
 def doMinhashComparison() = {
